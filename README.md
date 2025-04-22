@@ -1,5 +1,30 @@
 # Shardpack
 
+Proof of concept de uma ferramenta que possibilita a arquitetura de microfrontends.
+Carrega todos os microfrontends em build-time, diferindo do [Module Federation](https://module-federation.io/) que carrega os microfrontends em runtime, com a dependência de plugins especiais nos compiladores. 
+
+## Porque não Module Federation?
+
+O Module Federation tem inúmeros problemas:
+- **Request Waterfall**: o código do host carrega antes dos microfrontends, sem a possibilidade de paralelização, resultando em um carregamento mais lento.
+- **Uso ineficiente de rede**: como o código dos MFEs precisam estar sempre atualizados, há a necessidade do Module Federation sempre buscar atualizações
+- **Alto uso de CPU**: o processo de carregamento do código dos MFEs de forma dinâmica demanda um alto uso de CPU para interpretação do mesmo.
+- **Otimizações ineficientes**: como os MFEs são carregados em runtime, o código deles é uma caixa-preta em build-time, não há como saber o que cada um dos microfrontends poderá usar e por isso não há possibilidade de habilitar inúmeras otimizações.
+- **Dependência de frameworks**: o Module Federation depende de plugins próprios para a compilação e carregamento dos microfrontends, e por isso, vários frameworks não funcionam corretamente
+  - Dos poucos frameworks que são suportados, alguns estão obsoletos. Por exemplo, o plugin para NextJS, que só suporta o Pages Router, está obsoleto.
+- **Sem suporte a React Server Components**: o RSC depende de um processo de compilação que impede que os módulos sejam "caixa-preta" em build-time.
+- **Bundles grandes**: o Module Federation introduz muito código em runtime para gerenciar os módulos dinâmicos e as suas dependências, e esse código é duplicado entre cada um dos microfrontends.
+
+## Como que funciona essa POC?
+
+Ao invés de considerarmos microfrontends como bundles javascript que devem ser carregados dinamicamente, porque não podemos considerá-los como bibliotecas?
+
+O padrão de bibliotecas javascript é bem estabelecido no ecossistema, que significa que funciona bem com qualquer framework. Também não depende de compiladores específicos, já que todos suportam o modo biblioteca.
+
+Ao transformar todos os microfrontends em bibliotecas, ainda temos um problema: cada um deles teria que ser instalado e registrado individualmente no código do repositório do host. E cada atualização de um MFE precisaria de uma atualização no host também, que inflexibiliza a autonomia de cada um dos MFEs.
+
+Por conta disso, essa POC também visa atualizar e recompilar automaticamente a aplicação host quando um microfrontend for atualizado.
+
 ## Comparativo com Module Federation
 
 - Pros
@@ -17,7 +42,7 @@
   - **Isolação de dependências**: cada microfrontend pode ter suas próprias bibliotecas, sem conflitos de versionamento entre MFEs
   - **Compartilhamento de dependências**: para dependências que não precisam ou não podem ser duplicadas (como o React, por exemplo)
 
-## Pipeline
+## Proposta de Pipeline
 
 ```mermaid
 flowchart LR
