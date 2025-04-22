@@ -1,27 +1,36 @@
 # Shardpack
 
 Proof of concept de uma ferramenta que possibilita a arquitetura de microfrontends.
-Carrega todos os microfrontends em build-time, diferindo do [Module Federation](https://module-federation.io/) que carrega os microfrontends em runtime, com a dependência de plugins especiais nos compiladores. 
+Carrega todos os microfrontends em build-time, sendo um substituto ao [Module Federation](https://module-federation.io/) que carrega os microfrontends em runtime e depende de plugins de compiladores próprios para atingir esse resultado. 
+
+## Glossário
+
+- Microfrontend: Um repositório isolado que contém código de componentes do frontend
+- MFE: Abreviação para "Microfrontend"
+- Host: Aplicação orquestradora que carregará os microfrontends
+- Bundles: Arquivos JS gerados pelo compilador, que contém a aplicação inteira de forma otimizada e minificada
+- 
 
 ## Porque não Module Federation?
 
 O Module Federation tem inúmeros problemas:
-- **Request Waterfall**: o código do host carrega antes dos microfrontends, sem a possibilidade de paralelização, resultando em um carregamento mais lento.
-- **Uso ineficiente de rede**: como o código dos MFEs precisam estar sempre atualizados, há a necessidade do Module Federation sempre buscar atualizações
-- **Alto uso de CPU**: o processo de carregamento do código dos MFEs de forma dinâmica demanda um alto uso de CPU para interpretação do mesmo.
-- **Otimizações ineficientes**: como os MFEs são carregados em runtime, o código deles é uma caixa-preta em build-time, não há como saber o que cada um dos microfrontends poderá usar e por isso não há possibilidade de habilitar inúmeras otimizações.
-- **Dependência de frameworks**: o Module Federation depende de plugins próprios para a compilação e carregamento dos microfrontends, e por isso, vários frameworks não funcionam corretamente
+- **Request Waterfall**: os MFEs carregam apenas sob demanda, sem a possibilidade de paralelização com o carregamento do host, resultando em uma experiência mais lenta.
+- **Uso ineficiente de rede**: como o código dos MFEs precisam estar sempre atualizados, há a necessidade de sempre requisitar a última versão dos MFEs.
+- **Alto uso de CPU**: o processo de carregamento dos MFEs de forma dinâmica demanda um alto uso de CPU para interpretação e avaliação do código.
+- **Otimizações ineficientes**: como os MFEs são carregados em runtime, eles são uma "caixa-preta" em build-time, não há como saber o que cada um dos microfrontends poderá usar e por isso não há possibilidade de habilitar inúmeras otimizações.
+- **Dependência de frameworks**: o Module Federation depende de plugins próprios para a compilação e carregamento dos microfrontends, e por isso, vários frameworks não funcionam corretamente.
   - Dos poucos frameworks que são suportados, alguns estão obsoletos. Por exemplo, o plugin para NextJS, que só suporta o Pages Router, está obsoleto.
 - **Sem suporte a React Server Components**: o RSC depende de um processo de compilação que impede que os módulos sejam "caixa-preta" em build-time.
 - **Bundles grandes**: o Module Federation introduz muito código em runtime para gerenciar os módulos dinâmicos e as suas dependências, e esse código é duplicado entre cada um dos microfrontends.
 
 ## Como que funciona essa POC?
 
-Ao invés de considerarmos microfrontends como bundles javascript que devem ser carregados dinamicamente, porque não podemos considerá-los como bibliotecas?
+Ao invés de considerarmos microfrontends como bundles javascript que devem carregar dinamicamente em navegadores e em NodeJS, e gerenciar e compartilhar dependências dinamicamente, por que não podemos considerá-los como bibliotecas?
 
-O padrão de bibliotecas javascript é bem estabelecido no ecossistema, que significa que funciona bem com qualquer framework. Também não depende de compiladores específicos, já que todos suportam o modo biblioteca.
+Bibliotecas javascript é um padrão muito bem estabelecido no ecossistema, funciona bem com **qualquer** framework, não depende de compiladores específicos e todas as estratégias de otimização contemplam bibliotecas.
 
-Ao transformar todos os microfrontends em bibliotecas, ainda temos um problema: cada um deles teria que ser instalado e registrado individualmente no código do repositório do host. E cada atualização de um MFE precisaria de uma atualização no host também, que inflexibiliza a autonomia de cada um dos MFEs.
+Ao transformar todos os microfrontends em bibliotecas, ainda temos um problema: cada um deles teria que ser instalado e registrado individualmente no código do repositório do host.
+E cada atualização de um MFE precisaria de uma atualização no host também, que reduziria a autonomia dos MFEs.
 
 Por conta disso, essa POC também visa atualizar e recompilar automaticamente a aplicação host quando um microfrontend for atualizado.
 
@@ -42,17 +51,55 @@ Por conta disso, essa POC também visa atualizar e recompilar automaticamente a 
   - **Isolação de dependências**: cada microfrontend pode ter suas próprias bibliotecas, sem conflitos de versionamento entre MFEs
   - **Compartilhamento de dependências**: para dependências que não precisam ou não podem ser duplicadas (como o React, por exemplo)
 
+## Proposta de Código
+
+O primeiro passo é copiar todos os arquivos gerados pelas builds dos microfrontends para dentro da aplicação host. Vamos supor que a estrutura de pasta fique assim:
+
+```
+shardpack/
+└── modules/
+    ├── demo-mfe-nav/
+    │   └── [...].js
+    └── demo-mfe-product/
+        └── [...].js
+```
+
+Agora, precisamos carregar esses arquivos sob demanda. Visto que a função `import()` precisa de strings constantes, podemos gerar código de apoio que mapeia os imports desses arquivos a nomes, por exemplo:
+
+```ts
+// remote.js
+const remotes = {
+  "demo-mfe-nav/Header": () => import("./modules/demo-mfe-nav/Header.js"),
+  "demo-mfe-nav/Footer": () => import("./modules/demo-mfe-nav/Footer.js"),
+  "demo-mfe-product/Product": () => import("./modules/demo-mfe-product/Product.js"),
+};
+
+export async function loadRemote(name: string): Promise<any> {
+  const loader = remotes[name];
+  
+  if (loader) {
+    return await loader();
+  }
+  
+  throw new Error("Remote not found");
+}
+```
+
+Os imports serem estáticos permitem que o compilador saiba que esses arquivos poderão ser carregados, e isso permitiria otimizações.
+
+Não importa se a lista de remotes esteja vazia ou com mais de centenas de itens, a função `loadRemote()` continuaria igual, servindo como camada de abstração.
+
 ## Proposta de Pipeline
 
 ```mermaid
 flowchart LR
-subgraph Microfrontend A Pipeline
+subgraph Pipeline: Microfrontend A
     A("Install Deps") --> B(Build) --> C(Zip) --> D("Upload S3")
 end
-subgraph Microfrontend B Pipeline
+subgraph Pipeline: Microfrontend B
    A2("Install Deps") --> B2(Build) --> C2(Zip) --> D2("Upload S3")
 end
-subgraph Host Pipeline
+subgraph Pipeline: Host Application
      D -.-> E("Install Deps") --> F("Fetch S3") --> G("Generate Runtime") --> H("Build") --> I("Deploy")
      D2 -.-> E
 end
@@ -77,35 +124,9 @@ flowchart LR
     A("Install Deps") --> B("Fetch S3") --> C("Generate Runtime") --> D("Build") --> E(Deploy)
 ```
 
-
-1. `[Fetch S3]` Baixa e extrai cada um dos MFEs para a pasta modules
-   ```
-   shardpack/
-   └── modules/
-       ├── demo-mfe-nav/
-       │   └── [...].js
-       └── demo-mfe-product/
-           └── [...].js
-   ```
-2. `[Generate Runtime]` Gera um arquivo `runtime.js` que abtrai o carregamento dos remotes. Exemplo:
-    ```ts
-    const remotes = {
-      "demo-mfe-nav/Header": () => import("./modules/demo-mfe-nav/Header.js"),
-      "demo-mfe-nav/Footer": () => import("./modules/demo-mfe-nav/Footer.js"),
-      "demo-mfe-product/Product": () => import("./modules/demo-mfe-product/Product.js"),
-    } as const;
-    
-    export async function loadRemote(name: string): Promise<any> {
-      const loader = remotes[name];
-      
-      if (loader) {
-        return await loader();
-      }
-      
-      throw new Error("Remote not found");
-    }
-    ```
-3. `[Build]` A build do host poderá ser refeita, que irá considerar os arquivos dos MFEs como parte do projeto
+1. `[Fetch S3]` Baixa e extrai o zip de cada um dos MFEs para a pasta modules.
+2. `[Generate Runtime]` Gera um arquivo `runtime.js` que abtrai o carregamento dos remotes.
+3. `[Build]` A build do host poderá ser feita, que irá considerar os arquivos dos MFEs como parte do projeto
 
 ## Questionamentos
 
@@ -123,6 +144,17 @@ Nesse cenário, seria possível fazer a recompilação logo antes da inicializa�
 Evitar uma pipeline pode resultar em custos desnecessários. Ao invés de fazer uma única compilação por atualização de um MFE, seriam feitas multiplas recompilações, a depender da quantidade de réplicas e da frequência de reinicializações e eventos de autoscaling.
 
 
+### Existe alguma forma de fazer os MFEs dinâmicos e utilizar de hot-reload para atualizar sem downtime?
+
+Conceitualmente sim. Na prática, não.
+
+O hot reload é utilizado para recompilar e atualizar os recursos sem a necessidade de uma reinicialização.
+
+Por ser dedicado para ambientes de desenvolvimento com o objetivo de garantir a melhor experiência do desenvolvedor, a utilização de recursos é muito mais alta, os bundles não passam por nenhum processamento de otimização e informações de depuração são disponibilizadas client-side.
+
+Dessa forma, utilizar o hot reload perderia todos os "Pros" listados acima, tornando o Module Federation uma opção mais vantajosa.
+
+
 ### Ao invés de utilizar uma esteira CI/CD, poderia ter um microserviço para a recompilação?
 
 Sim. O resultado seria o mesmo, e isso abre o seguinte questionamento: esse microserviço não se tornaria uma ferramenta de CI/CD?
@@ -133,14 +165,3 @@ Vale a reflexão do porquê a atual ferramenta de CI/CD não atenderia tão bem 
 - Os custos são mais altos do que de um microserviço?
 - Há alguma barreira na evolução da ferramenta? (exemplo: depende de outro time que tem outras prioridades)
 - Existe algum outro fator limitante no uso da ferramenta?
-
-### Existe alguma forma de fazer os MFEs dinâmicos e utilizar de hot-reload para atualizar sem downtime?
-
-Conceitualmente sim. Na prática, não.
-
-O hot reload é utilizado para recompilar e atualizar os recursos sem a necessidade de uma reinicialização.
-
-Por ser dedicado para ambientes de desenvolvimento com o objetivo de garantir a melhor experiência do desenvolvedor, a utilização de recursos é muito mais alta, os bundles não passam por nenhum processamento de otimização e informações de depuração são disponibilizadas client-side. 
-
-Dessa forma, utilizar o hot reload perderia todos os "Pros" listados acima, tornando o Module Federation uma opção mais vantajosa.
-
