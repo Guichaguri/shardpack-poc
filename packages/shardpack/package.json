@@ -1,0 +1,32 @@
+{
+  "name": "shardpack",
+  "version": "1.0.0",
+  "description": "",
+  "author": "Guichaguri",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "lib"
+  ],
+  "module": "./lib/runtime.js",
+  "types": "./lib/runtime.d.ts",
+  "exports": {
+    ".": {
+      "import": "./lib/runtime.js",
+      "types": "./lib/runtime.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsx src/builder/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "unzipper": "^0.12.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "@types/unzipper": "^0.10.11",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
