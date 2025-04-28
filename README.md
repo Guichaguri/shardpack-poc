@@ -4,7 +4,7 @@ Proof of concept de uma ferramenta que possibilita a arquitetura de microfronten
 
 Carrega todos os microfrontends em build-time, automatizando o processo de instalação e atualização.
 
-O objetivo dessa POC é ser um substituto do [Module Federation](https://module-federation.io/) que carrega os microfrontends em runtime e depende de compiler plugins para atingir esse resultado. 
+O objetivo dessa POC é ser um substituto do [Module Federation](https://module-federation.io/), sem carregar os microfrontends em runtime e depender de compiler plugins para atingir esse resultado. 
 
 ## Glossário
 
@@ -123,7 +123,7 @@ flowchart LR
 1. `[Build]` Os MFEs devem fazer uma build no modo library, incluindo no bundle de todas as dependências (exceto as compartilhadas)
 2. `[Zip]` A pasta "dist" dos MFEs deve ser zipada
 3. `[Upload S3]` Esse zip deve ser salvo no S3
-4. O host poderá então ser recompilado
+4. O host deverá então ser recompilado
 
 ### Pipeline do host
 
@@ -135,6 +135,23 @@ flowchart LR
 1. `[Fetch S3]` Baixa e extrai o zip de cada um dos MFEs para a pasta `modules`.
 2. `[Generate Runtime]` Gera o arquivo `runtime.js` que abtrai o carregamento dos MFEs.
 3. `[Build]` Compila o host, que incluirá os arquivos dos MFEs como parte do projeto.
+
+### Implementações
+
+As primeiras etapas da pipeline de um microfrontend são bem simples de implementar, basta executar comandos comuns:
+- Build: `npm run build`
+- Zip: [`zip -r dist.zip dist`](https://linux.die.net/man/1/zip)
+- Upload S3: [`aws s3 cp dist.zip s3://nome-do-bucket/exemplo/mfe.zip`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/s3/cp.html)
+
+A maior complexidade na implementação dessa pipeline é o passo de disparar a pipeline do host a partir da pipeline dos MFEs, que pode ser feito de várias maneiras, dependendo da ferramenta de CI/CD utilizada:
+
+- No GitLab CI/CD, é possível criar uma [Multi-project pipeline](https://docs.gitlab.com/ci/pipelines/downstream_pipelines/#multi-project-pipelines).
+- No Bitbucket Pipelines, é possível utilizar o [Trigger Pipeline](https://bitbucket.org/product/features/pipelines/integrations?p=atlassian/trigger-pipeline).
+- No GitHub Actions, é possível utilizar o trigger `repository_dispatch` em conjunto com uma chamada na API. [Veja](https://github.com/peter-evans/repository-dispatch) [um](https://www.amaysim.technology/blog/using-github-actions-to-trigger-actions-across-repos) [exemplo](https://medium.com/hostspaceng/triggering-workflows-in-another-repository-with-github-actions-4f581f8e0ceb).
+- No Jenkins, é possível utilizar o [plugin Build Step](https://plugins.jenkins.io/pipeline-build-step/) ou o [plugin Parameterized Trigger](https://plugins.jenkins.io/parameterized-trigger/) para disparar um job em outro repositório. [Veja outros exemplos](https://www.coachdevops.com/2023/12/how-to-trigger-jenkins-job-from-another.html).
+- No Azure DevOps, é possível utilizar a funcionalidade [Resources](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/resources?view=azure-devops#pipeline-resource) para disparar uma pipeline em outro repositório. [Veja um exemplo](https://github.com/HoussemDellai/Trigger-Pipeline-From-Another-Pipeline?tab=readme-ov-file#1-trigger-a-pipeline-from-another-pipeline-using-resources-feature).
+
+Já na pipeline do host, as etapas "Fetch S3" e "Generate Runtime" são implementadas pelo Shardpack, basta apenas executar um comando antes da build.
 
 ## Questionamentos
 
