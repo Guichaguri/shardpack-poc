@@ -2,7 +2,8 @@
   "name": "root",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/demo-shardpack-*",
+    "packages/shardpack"
   ],
   "dependencies": {},
   "devDependencies": {
