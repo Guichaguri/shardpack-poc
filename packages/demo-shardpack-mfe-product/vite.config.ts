@@ -1,12 +1,17 @@
 import { defineConfig } from 'vite';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { libInjectCss } from 'vite-plugin-lib-inject-css';
+import preserveDirectives from 'rollup-preserve-directives';
 
 import * as packageJson from './package.json';
 
 export default defineConfig({
-  plugins: [react(), libInjectCss()],
+  plugins: [
+    react(),
+    libInjectCss(),
+    preserveDirectives(),
+  ],
   build: {
     target: 'esnext',
     minify: false,
@@ -18,6 +23,11 @@ export default defineConfig({
       formats: ['es'],
     },
     rollupOptions: {
+      output: {
+        preserveModules: true,
+        // Necessário adicionar o hash para que o CSS compilado não termine com ".module.css"
+        assetFileNames: '[name].[hash][extname]',
+      },
       // Exclude peer dependencies from the bundle to reduce bundle size
       external: ['react/jsx-runtime', ...Object.keys(packageJson['peerDependencies'] ?? {})],
     },
