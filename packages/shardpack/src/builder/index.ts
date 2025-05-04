@@ -55,7 +55,7 @@ async function build(cwd: string, modules: ExternalModule[], metadata?: any): Pr
 }
 
 async function run() {
-  await build(path.join(import.meta.dirname, '../../../demo-shardpack-host'), [
+  const modules: ExternalModule[] = [
     {
       name: 'demo-mfe-nav',
       url: 'file://' + path.join(import.meta.dirname, '../../../demo-shardpack-mfe-nav/dist'),
@@ -80,7 +80,11 @@ async function run() {
         },
       ],
     },
-  ]);
+  ];
+
+  await build(path.join(import.meta.dirname, '../../../demo-shardpack-host-rsc'), modules);
+  await build(path.join(import.meta.dirname, '../../../demo-shardpack-host-ssr'), modules);
+  await build(path.join(import.meta.dirname, '../../../demo-shardpack-host-csr'), modules);
 }
 
 run().catch(error => console.error(error));
