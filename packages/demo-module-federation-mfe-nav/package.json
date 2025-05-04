@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "export NEXT_PRIVATE_LOCAL_WEBPACK=true && next dev -p 3002",
     "build": "export NEXT_PRIVATE_LOCAL_WEBPACK=true && next build",
-    "start": "export NEXT_PRIVATE_LOCAL_WEBPACK=true && next start",
+    "start": "export NEXT_PRIVATE_LOCAL_WEBPACK=true && next start -p 3002",
     "lint": "export NEXT_PRIVATE_LOCAL_WEBPACK=true && next lint"
   },
   "dependencies": {
