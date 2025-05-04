@@ -1,5 +1,7 @@
+// @ts-check
 const { NextFederationPlugin } = require('@module-federation/nextjs-mf');
 
+/** @type {import('next').NextConfig} */
 module.exports = {
   webpack: (config, options) => {
     if (!options.isServer) {

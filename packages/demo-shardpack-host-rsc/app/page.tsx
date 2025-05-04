@@ -9,7 +9,10 @@ const mfes = {
 
 const pageComponents = ['header', 'product', 'footer'];
 
-export default function Page() {
+// Essa propriedade é necessária para garantir que o Next.js não faça static rendering
+export const dynamic = 'force-dynamic';
+
+export default async function Page() {
   return (
     <>
       {pageComponents.map((name, i) => {

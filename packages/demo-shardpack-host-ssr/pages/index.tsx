@@ -1,5 +1,6 @@
 import { lazy } from 'react';
 import { loadRemote } from 'shardpack';
+import { GetServerSidePropsResult } from 'next';
 
 const mfes = {
   header: lazy(() => loadRemote('demo-mfe-nav/Header')),
@@ -8,6 +9,11 @@ const mfes = {
 };
 
 const pageComponents = ['header', 'product', 'footer'];
+
+export async function getServerSideProps(): Promise<GetServerSidePropsResult<{}>> {
+  // Essa implementação é necessária para garantir que o Next.js não faça static rendering
+  return { props: {} };
+}
 
 export default function Page() {
   return (

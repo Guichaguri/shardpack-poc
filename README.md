@@ -19,10 +19,11 @@ O Module Federation tem inúmeros problemas:
 - **Request Waterfall**: os MFEs carregam apenas sob demanda, sem a possibilidade de paralelização com o carregamento do host, resultando em uma experiência mais lenta.
 - **Uso ineficiente de rede**: como o código dos MFEs precisam estar sempre atualizados, há a necessidade de sempre requisitar a última versão dos MFEs.
 - **Alto uso de CPU**: o processo de carregamento dos MFEs de forma dinâmica demanda um alto uso de CPU para interpretação e avaliação do código.
-- **Otimizações ineficientes**: como os MFEs são carregados em runtime, eles são uma "caixa-preta" em build-time, não há como saber o que cada um dos microfrontends poderá usar e por isso não há possibilidade de habilitar inúmeras otimizações.
+- **Otimizações ineficientes**: como os MFEs são carregados em runtime, eles são uma "caixa-preta" em build-time, não há como saber o que cada um dos microfrontends poderá usar e por isso não há possibilidade de habilitar inúmeras otimizações. (exemplos: DCE, PPR, ISR, RSC, etc)
 - **Dependência de frameworks**: o Module Federation depende de plugins próprios para a compilação e carregamento dos microfrontends, e por isso, vários frameworks não funcionam corretamente.
   - Além disso, dos poucos frameworks que são suportados, alguns estão obsoletos. Por exemplo, o plugin para NextJS, que só suporta o Pages Router, está obsoleto.
 - **Sem suporte a React Server Components**: o RSC depende de um processo de compilação que impede que os módulos sejam "caixa-preta" em build-time.
+- **Sem suporte a outros runtimes**: o Module Federation só suporta web e NodeJS nesse momento, não há suporte para Bun, Deno, React Native e edge.
 - **Bundles grandes**: o Module Federation introduz muito código em runtime para gerenciar os módulos dinâmicos e as suas dependências, e esse código é duplicado entre cada um dos microfrontends.
 
 ## Como que funciona essa POC?
@@ -47,6 +48,7 @@ Por conta disso, essa POC também visa atualizar e recompilar automaticamente a 
   - **Builds mais otimizadas**: tree shaking mais eficiente
   - **Runtime mais otimizado**: sem necessidade de carregar MFEs externamente
   - **Agnóstico a frameworks**: possibilidade de usar qualquer framework, ambiente e ferramenta de build
+  - **SSR facilitado**: não requer nenhuma configuração adicional
 - Cons
   - **Pipeline mais complexa**: requer a implementação de triggers da pipeline dos microfrontends para fazer um novo deploy host
   - **Deploys frequentes**: cada deploy de um MFE causaria um novo deploy do host
@@ -153,6 +155,20 @@ A maior complexidade na implementação dessa pipeline é o passo de disparar a 
 
 Já na pipeline do host, as etapas "Fetch S3" e "Generate Runtime" são implementadas pelo Shardpack, basta apenas executar um comando antes da build.
 
+## Demonstrações
+
+Criei duas demonstrações, uma com a proposta do Shardpack, e outra com o Module Federation. As demos seguem a mesma estrutura, com o código dos componentes iguais, apenas mudando a forma de carregar os MFEs e o método de renderização.
+
+Contém:
+- `host`: Aplicação principal, utilizando NextJS
+- `mfe-nav`: Microfrontend que contém os componentes de cabeçalho e o rodapé
+- `mfe-product`: Microfrontend que contém um componente de detalhes do produto
+
+Para executar, há scripts na pasta `scripts` para instalar as dependências, compilar os repositórios e executá-los:
+1. Execute `install.sh` para instalar as dependências
+2. Execute `build.sh` para compilar os repositórios
+3. Execute `run-[...].sh` para executar a demo que desejar
+
 ## Questionamentos
 
 ### Há alguma maneira de atualizar o host sem a necessidade de executar a pipeline?
@@ -190,3 +206,17 @@ Podem existir motivos em que a atual ferramenta de CI/CD não atenderia tão bem
 - Os custos são mais altos do que de um microserviço?
 - Há alguma barreira na evolução da ferramenta? (exemplo: depende de outro time que tem outras prioridades)
 - Existe algum outro fator limitante no uso da ferramenta?
+
+### Há alguma outra forma de carregar em runtime?
+
+O Module Federation não só contém o código para carregamento em runtime, mas também contém uma camada lógica que consegue isolar dependências, ou compartilhá-las caso necessário.
+
+Toda essa lógica poderia ser replicada de uma forma bem mais simples através de uma compilação dos microfrontends em modo biblioteca.
+As dependências compartilhadas poderiam ser geridas através de variáveis globais (IIFE), e a isolação das dependências poderia ser feita através do bundling das mesmas na build dos MFEs.
+
+Então, os próprios MFEs poderiam ser então carregados em variáveis globais (IIFE), e essas acessadas pelo host.
+
+A principal vantagem sobre o Module Federation é que não há necessidade de código adicional para carregar os MFEs e gerir dependências, já que todos serão registrados no escopo global.
+Já a principal desvantagem é que você teria que gerir as dependências e o carregamento manualmente.
+
+A otimização é pequena e a complexidade de desenvolvimento é alta, e por isso não é uma solução tão vantajosa quanto fazer o carregamento em build-time.
