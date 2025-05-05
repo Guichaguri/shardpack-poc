@@ -1,6 +1,8 @@
 // @ts-check
 const { NextFederationPlugin } = require('@module-federation/nextjs-mf');
 
+const externalHost = 'localhost';
+
 /** @type {import('next').NextConfig} */
 module.exports = {
   webpack: (config, options) => {
@@ -11,8 +13,8 @@ module.exports = {
           filename: 'static/chunks/remoteEntry.js',
           dts: false,
           remotes: {
-            'demo-mfe-nav': `demo-mfe-nav@http://localhost:3002/_next/static/chunks/remoteEntry.js`,
-            'demo-mfe-product': `demo-mfe-product@http://localhost:3003/_next/static/chunks/remoteEntry.js`,
+            'demo-mfe-nav': `demo-mfe-nav@http://${externalHost}:3002/_next/static/chunks/remoteEntry.js`,
+            'demo-mfe-product': `demo-mfe-product@http://${externalHost}:3003/_next/static/chunks/remoteEntry.js`,
           },
           shared: {},
           extraOptions: {
