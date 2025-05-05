@@ -3,3 +3,4 @@ dist/
 node_modules/
 .__mf__temp
 .next
+html-report.html

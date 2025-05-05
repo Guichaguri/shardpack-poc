@@ -157,9 +157,9 @@ Já na pipeline do host, as etapas "Fetch S3" e "Generate Runtime" são implemen
 
 ## Demonstrações
 
-Criei duas demonstrações, uma com a proposta do Shardpack, e outra com o Module Federation. As demos seguem a mesma estrutura, com o código dos componentes iguais, apenas mudando a forma de carregar os MFEs e o método de renderização.
+Criei algumas demonstrações, três seguindo a proposta do Shardpack, e duas com o Module Federation. As demos seguem a mesma estrutura, com o código dos componentes iguais, apenas mudando a forma de carregar os MFEs e o método de renderização.
 
-Contém:
+Cada uma das demos renderiza a mesma aplicação, contendo:
 - `host`: Aplicação principal, utilizando NextJS
 - `mfe-nav`: Microfrontend que contém os componentes de cabeçalho e o rodapé
 - `mfe-product`: Microfrontend que contém um componente de detalhes do produto
